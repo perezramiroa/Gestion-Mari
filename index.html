@@ -29,4 +29,465 @@
   input, select{font-size:15px;padding:8px;border:1px solid #ccc;border-radius:8px}
   .etiq{font-size:12px;color:#555}
   .gana{font-size:13px;color:#2e7d32;font-weight:bold}
-  .btn{background:#
+  .btn{background:#7b1fa2;color:#fff;border:none;border-radius:8px;padding:9px 14px;font-size:13.5px;font-weight:bold;cursor:pointer;margin:4px 4px 4px 0}
+  .btn-verde{background:#2e7d32}.btn-rosa{background:#c2185b}.btn-rojo{background:#c62828}
+  .btn-chico{padding:7px 10px;font-size:12.5px}
+  .venta{border-bottom:1px solid #eee;padding:8px 2px;font-size:13.5px}
+  .tot{font-weight:bold;color:#2e7d32}
+  .debe{font-weight:bold;color:#c62828}
+  .badge{font-size:11.5px;padding:2px 8px;border-radius:10px;font-weight:bold}
+  .b-pend{background:#fff3cd;color:#8a6d00}.b-ent{background:#e8f5e9;color:#2e7d32}
+  .alerta{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:10px;font-size:13px;margin-bottom:10px}
+  h2{color:#880e4f;font-size:16px;margin:14px 0 8px}
+  .item-linea{background:#fce4ec;border-radius:8px;padding:6px 10px;margin:4px 0;font-size:13.5px;display:flex;justify-content:space-between;align-items:center}
+  .x{color:#c62828;font-weight:bold;cursor:pointer;padding:0 6px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🍽️ Gestión — Milanesas & Pastas</h1>
+  <div class="sync" id="syncEstado">🔌 Sin conectar</div>
+  <div class="kpis">
+    <div>💰 Ganado hoy: <span id="gHoy">$0</span></div>
+    <div>🏆 Ganado total: <span id="gTotal">$0</span></div>
+    <div>💸 Gastado: <span id="gastado">$0</span></div>
+    <div>📌 Por cobrar: <span id="porCobrar">$0</span></div>
+  </div>
+</header>
+
+<main>
+  <!-- PRODUCTOS -->
+  <section id="tab-productos">
+    <input class="buscador" id="buscar" placeholder="🔍 Buscar producto..." oninput="render()">
+    <div id="listaProductos"></div>
+  </section>
+
+  <!-- PEDIDOS -->
+  <section id="tab-pedidos" style="display:none">
+    <div class="card">
+      <div class="nombre">📋 Nuevo pedido</div>
+      <div class="fila"><input id="pedCliente" placeholder="Nombre del cliente" style="flex:1"></div>
+      <div class="fila"><select id="pedProd" style="flex:1"></select></div>
+      <div class="fila">
+        <input id="pedCant" type="number" step="any" inputmode="decimal" placeholder="Cantidad" style="width:90px">
+        <button class="btn btn-chico" onclick="agregarItem()">➕ Agregar</button>
+      </div>
+      <div id="itemsCarrito"></div>
+      <div class="fila">
+        <span class="etiq">Seña que deja:</span>
+        <input class="precio" id="pedSena" type="number" placeholder="0">
+        <span class="gana">Total: <span id="pedTotal">$0</span></span>
+      </div>
+      <button class="btn btn-rosa" onclick="guardarPedido()">💾 Guardar pedido</button>
+    </div>
+    <div id="listaPedidos"></div>
+  </section>
+
+  <!-- COMPRAS -->
+  <section id="tab-compras" style="display:none">
+    <div class="alerta">🛒 Para registrar una compra, andá a <b>Productos</b> y tocá el botón verde <b>"🛒 Compré"</b>. Acá ves todo lo gastado.</div>
+    <div id="listaCompras"></div>
+  </section>
+
+  <!-- HISTORIAL -->
+  <section id="tab-historial" style="display:none">
+    <button class="btn" onclick="exportarCSV('ventas')">📥 Ventas</button>
+    <button class="btn" onclick="exportarCSV('pedidos')">📥 Pedidos</button>
+    <button class="btn" onclick="exportarCSV('compras')">📥 Compras</button>
+    <h2>📜 Ventas registradas</h2>
+    <div id="listaVentas"></div>
+  </section>
+
+  <!-- AJUSTES -->
+  <section id="tab-ajustes" style="display:none">
+    <h2>☁️ Conexión con Google Sheet</h2>
+    <div class="alerta">Pegá acá la URL de Apps Script (la que termina en <b>/exec</b>). Se guarda una sola vez en este navegador.</div>
+    <input id="apiUrl" placeholder="https://script.google.com/.../exec" style="width:100%">
+    <div class="fila">
+      <button class="btn btn-verde" onclick="probarApi()">🔗 Conectar</button>
+      <button class="btn" onclick="forzarSubida()">⬆️ Subir mis datos</button>
+      <button class="btn" onclick="forzarDescarga()">⬇️ Bajar del Sheet</button>
+    </div>
+
+    <h2>➕ Agregar producto</h2>
+    <input class="buscador" id="nuevoNombre" placeholder="Nombre del producto">
+    <div class="fila">
+      <select id="nuevaUnidad">
+        <option value="un">Unidad</option><option value="kg">Kilo</option><option value="paq">Paquete</option>
+      </select>
+      <input class="precio" id="nuevoCosto" type="number" placeholder="Costo">
+      <input class="precio" id="nuevoPrecio" type="number" placeholder="Venta">
+      <input class="precio" id="nuevoStock" type="number" placeholder="Stock">
+    </div>
+    <button class="btn" onclick="agregarProducto()">Guardar producto</button>
+
+    <h2>💾 Respaldo de datos</h2>
+    <div class="alerta">⚠️ Además del Sheet, hacé respaldos: los datos viven en este navegador.</div>
+    <button class="btn" onclick="exportarJSON()">📤 Guardar respaldo</button>
+    <label class="btn" style="display:inline-block">📥 Cargar respaldo<input type="file" accept=".json" style="display:none" onchange="importarJSON(event)"></label>
+    <h2>🗑️ Zona peligrosa</h2>
+    <button class="btn btn-rojo" onclick="borrarTodo()">Borrar TODOS los datos</button>
+  </section>
+</main>
+
+<nav>
+  <button class="activo" onclick="cambiarTab(0,this)">📦<br>Productos</button>
+  <button onclick="cambiarTab(1,this)">📋<br>Pedidos</button>
+  <button onclick="cambiarTab(2,this)">🛒<br>Compras</button>
+  <button onclick="cambiarTab(3,this)">📜<br>Historial</button>
+  <button onclick="cambiarTab(4,this)">⚙️<br>Ajustes</button>
+</nav>
+
+<script>
+const MILANESAS = [
+ "Berenjena, cebolla y pimientos asados","Tomates confitados, albahaca y queso","Calabaza, cebolla y pimiento",
+ "Calabaza, cebolla, pimiento y queso","Choclo, cebolla, pimiento y queso","Jamón y queso","Jamón y queso roquefort",
+ "Jamón, queso y tomates confitados","Jamón, queso y palta","Jamón, queso, tomates y albahaca","Brócoli y queso",
+ "Acelga y queso","Acelga y queso roquefort","Cebolla y queso","Cebolla, queso y tomates confitados",
+ "Hongos y cebolla caramelizadas","Tres quesos","Acelga roquefort y nuez","Queso roquefort y nuez",
+ "Pera caramelizada, roquefort y nuez"
+];
+const DEFAULT = [
+ ...MILANESAS.map(n=>({nombre:"Milanesa: "+n,unidad:"un",costo:4000,precio:6500,stock:0})),
+ {nombre:"Ñoquis clásicos",unidad:"kg",costo:3000,precio:6000,stock:0},
+ {nombre:"Ñoquis de espinaca",unidad:"kg",costo:3500,precio:6500,stock:0},
+ {nombre:"Fideos clásicos",unidad:"kg",costo:3000,precio:6000,stock:0},
+ {nombre:"Fideos de espinaca",unidad:"kg",costo:4000,precio:6500,stock:0},
+ {nombre:"Fideos integrales",unidad:"kg",costo:0,precio:6000,stock:0},
+ {nombre:"Ravioles XL (x16)",unidad:"paq",costo:6000,precio:7000,stock:0},
+ {nombre:"Sorrentinos verdes (x8)",unidad:"paq",costo:3500,precio:6000,stock:0},
+ {nombre:"Pizzetas clásicas (x12)",unidad:"paq",costo:3500,precio:6000,stock:0},
+ {nombre:"Pizzetas integrales (x12)",unidad:"paq",costo:4000,precio:6000,stock:0}
+];
+const UNIDAD = {un:"unidad",kg:"kilo",paq:"paquete"};
+const fmt = n => "$" + Math.round(n).toLocaleString("es-AR");
+const fnum = n => (+n).toLocaleString("es-AR",{maximumFractionDigits:2});
+const apiURL = () => localStorage.getItem("gestionYani_api") || "";
+
+let state = (function(){
+  try{
+    const s = JSON.parse(localStorage.getItem("gestionYani2"));
+    if(s && s.productos) return Object.assign({ventas:[],compras:[],pedidos:[]}, s);
+  }catch(e){}
+  return {productos:JSON.parse(JSON.stringify(DEFAULT)),ventas:[],compras:[],pedidos:[]};
+})();
+let carrito = {items:[]};
+
+let syncTimer=null, sincronizando=false;
+function guardar(){
+  localStorage.setItem("gestionYani2", JSON.stringify(state));
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(syncSubir, 1500);
+}
+function marcarSync(t){ document.getElementById("syncEstado").textContent = t; }
+
+/* ===== SINCRONIZACIÓN ===== */
+async function syncSubir(){
+  if(!apiURL() || sincronizando) return;
+  sincronizando = true;
+  try{
+    const r = await fetch(apiURL(), {method:"POST", body: JSON.stringify({accion:"guardar", estado: state})});
+    const j = await r.json();
+    if(j.ok) marcarSync("☁️ Guardado en Sheet — " + new Date().toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"}));
+    else marcarSync("⚠️ Error del script: " + j.error);
+  }catch(e){ marcarSync("⚠️ Sin conexión — guardado solo en el celu"); }
+  sincronizando = false;
+}
+
+async function syncBajar(){
+  const r = await fetch(apiURL() + "?accion=leer");
+  const j = await r.json();
+  if(!j.ok) throw new Error(j.error);
+  const e = j.estado;
+  const serverVacio = !e.productos || e.productos.length===0;
+  const localTiene = state.productos.length || state.ventas.length || state.compras.length || state.pedidos.length;
+  if(serverVacio && localTiene){ await syncSubir(); return; }
+  if(!serverVacio){
+    state = Object.assign({ventas:[],compras:[],pedidos:[]}, e);
+    localStorage.setItem("gestionYani2", JSON.stringify(state));
+  }
+}
+
+async function probarApi(){
+  const url = document.getElementById("apiUrl").value.trim();
+  if(!url) return alert("Pegá la URL del Apps Script (termina en /exec)");
+  marcarSync("⏳ Probando conexión...");
+  try{
+    const r = await fetch(url + "?accion=leer");
+    const j = await r.json();
+    if(j.ok){
+      localStorage.setItem("gestionYani_api", url);
+      marcarSync("☁️ ¡Conectado al Sheet!");
+      alert("✅ ¡Conectado! Desde ahora todo se guarda solo en tu Google Sheet.");
+      await syncBajar(); render();
+    } else alert("❌ El script respondió mal: " + j.error);
+  }catch(e){ marcarSync("🔌 Sin conectar");
+    alert("❌ No se pudo conectar.\nRevisá: 1) que la URL termine en /exec  2) que en la implementación 'Quién tiene acceso' sea 'Cualquier usuario'"); }
+}
+
+async function forzarSubida(){
+  if(!apiURL()) return alert("Primero conectá la URL");
+  marcarSync("⏳ Subiendo...");
+  try{ await syncSubir(); alert("✅ Datos subidos al Sheet"); }catch(e){ alert("❌ Falló la subida"); }
+}
+
+async function forzarDescarga(){
+  if(!apiURL()) return alert("Primero conectá la URL");
+  marcarSync("⏳ Descargando...");
+  try{
+    await syncBajar(); render();
+    marcarSync("☁️ Sincronizado con Sheet");
+    alert("✅ Datos traídos del Sheet");
+  }catch(e){ alert("❌ Falló la descarga: " + e.message); }
+}
+
+/* ===== NAVEGACIÓN ===== */
+function cambiarTab(n, btn){
+  ["productos","pedidos","compras","historial","ajustes"].forEach((t,i)=>document.getElementById("tab-"+t).style.display = i===n?"block":"none");
+  document.querySelectorAll("nav button").forEach(b=>b.classList.remove("activo"));
+  btn.classList.add("activo");
+}
+
+/* ===== PRODUCTOS ===== */
+function renderProductos(){
+  const f = document.getElementById("buscar").value.toLowerCase();
+  document.getElementById("listaProductos").innerHTML = state.productos.map((p,i)=>
+    p.nombre.toLowerCase().includes(f) ? `
+    <div class="card">
+      <div class="nombre">${p.nombre}</div><div class="unidad">se vende por: ${UNIDAD[p.unidad]}</div>
+      <div class="fila">
+        <span class="etiq">Stock:</span>
+        <button class="stock-btn menos" onclick="ajustarStock(${i},-1)">−</button>
+        <span class="stock-num ${p.stock<=0?'sin-stock':''}">${fnum(p.stock)}</span>
+        <button class="stock-btn mas" onclick="ajustarStock(${i},1)">+</button>
+        ${p.stock<=0?'<span class="sin-stock">⚠️ SIN STOCK</span>':''}
+      </div>
+      <div class="fila">
+        <span class="etiq">Costo</span><input class="precio" type="number" value="${p.costo}" onchange="setValor(${i},'costo',this.value)">
+        <span class="etiq">Venta</span><input class="precio" type="number" value="${p.precio}" onchange="setValor(${i},'precio',this.value)">
+      </div>
+      <div class="fila"><span class="gana">Ganás ${fmt(p.precio-p.costo)} c/u</span></div>
+      <div class="fila">
+        <button class="btn btn-verde btn-chico" onclick="comprar(${i})">🛒 Compré</button>
+        <button class="btn btn-rosa btn-chico" onclick="vender(${i})">💵 Vendí</button>
+        <button class="btn btn-rojo btn-chico" style="margin-left:auto" onclick="borrarProducto(${i})">🗑</button>
+      </div>
+    </div>`:"").join("");
+}
+
+function ajustarStock(i,d){
+  const p = state.productos[i];
+  const q = parseFloat(prompt((d>0?"¿Cuánto entró? (corrección)":"¿Cuánto salió? (merma, regalo, etc.)"),"1"));
+  if(!q || q<=0) return;
+  p.stock = Math.max(0, +(p.stock + d*q).toFixed(2));
+  guardar(); render();
+}
+
+function setValor(i,campo,v){ state.productos[i][campo] = parseFloat(v)||0; guardar(); render(); }
+
+function vender(i){
+  const p = state.productos[i];
+  const q = parseFloat(prompt("¿Cuánto vendiste de:\n"+p.nombre+"?\n(en "+UNIDAD[p.unidad]+")","1"));
+  if(!q || q<=0) return;
+  if(q > p.stock && !confirm("⚠️ Stock insuficiente (hay "+fnum(p.stock)+").\n¿Registrar la venta igual?")) return;
+  p.stock = Math.max(0, +(p.stock - q).toFixed(2));
+  state.ventas.push({fecha:Date.now(),nombre:p.nombre,unidad:p.unidad,cant:q,precio:p.precio,costo:p.costo,total:+(q*p.precio).toFixed(2),ganancia:+(q*(p.precio-p.costo)).toFixed(2),pedido:""});
+  guardar(); render();
+  alert("✅ Venta registrada. Ganancia: "+fmt(q*(p.precio-p.costo)));
+}
+
+function comprar(i){
+  const p = state.productos[i];
+  const q = parseFloat(prompt("¿Cuánto compraste de:\n"+p.nombre+"?\n(en "+UNIDAD[p.unidad]+")","1"));
+  if(!q || q<=0) return;
+  const c = parseFloat(prompt("Precio unitario que te cobraron:", p.costo));
+  if(isNaN(c) || c<0) return;
+  if(c !== p.costo){ if(confirm("¿Actualizar el costo de este producto a "+fmt(c)+"?")) p.costo = c; }
+  p.stock = +(p.stock + q).toFixed(2);
+  state.compras.push({fecha:Date.now(),nombre:p.nombre,cant:q,costoUnit:c,total:+(q*c).toFixed(2)});
+  guardar(); render();
+  alert("🛒 Compra registrada: gastaste "+fmt(q*c)+" y entraron "+fnum(q)+" al stock.");
+}
+
+function borrarProducto(i){
+  if(confirm("¿Eliminar "+state.productos[i].nombre+" de la lista?")){ state.productos.splice(i,1); guardar(); render(); }
+}
+
+function agregarProducto(){
+  const n = document.getElementById("nuevoNombre").value.trim();
+  if(!n) return alert("Poné un nombre");
+  state.productos.push({nombre:n,unidad:document.getElementById("nuevaUnidad").value,
+    costo:parseFloat(document.getElementById("nuevoCosto").value)||0,
+    precio:parseFloat(document.getElementById("nuevoPrecio").value)||0,
+    stock:parseFloat(document.getElementById("nuevoStock").value)||0});
+  guardar(); render(); alert("✅ Producto agregado");
+  document.getElementById("nuevoNombre").value="";
+}
+
+/* ===== PEDIDOS ===== */
+const saldoP = p => Math.max(0, +(p.total - p.senas.reduce((s,x)=>s+x.monto,0)).toFixed(2));
+
+function renderPedidos(){
+  document.getElementById("pedProd").innerHTML = state.productos.map((p,i)=>`<option value="${i}">${p.nombre} — ${fmt(p.precio)}/${UNIDAD[p.unidad].slice(0,3)}</option>`).join("");
+  document.getElementById("itemsCarrito").innerHTML = carrito.items.map((it,ix)=>
+    `<div class="item-linea"><span>${fnum(it.cant)} ${UNIDAD[it.unidad].slice(0,3)} — ${it.nombre}</span><span class="x" onclick="quitarItem(${ix})">✕</span></div>`).join("");
+  document.getElementById("pedTotal").textContent = fmt(carrito.items.reduce((s,it)=>s+it.cant*it.precio,0));
+
+  const ordenados = state.pedidos.slice().sort((a,b)=>(a.entregado?1:0)-(b.entregado?1:0)||b.fecha-a.fecha);
+  document.getElementById("listaPedidos").innerHTML = ordenados.map(p=>{
+    const senas = p.senas.reduce((s,x)=>s+x.monto,0), saldo = saldoP(p);
+    return `
+    <div class="card">
+      <div class="fila" style="justify-content:space-between">
+        <div class="nombre">👤 ${p.cliente}</div>
+        <span class="badge ${p.entregado?'b-ent':'b-pend'}">${p.entregado?'🟢 Entregado':'🟡 Pendiente'}</span>
+      </div>
+      <div class="unidad">${new Date(p.fecha).toLocaleDateString("es-AR")} — ${p.items.map(it=>fnum(it.cant)+" "+UNIDAD[it.unidad].slice(0,3)+" "+it.nombre).join(" + ")}</div>
+      <div class="fila">
+        <span class="etiq">Total: <b>${fmt(p.total)}</b></span>
+        <span class="etiq">Pagó: <b>${fmt(senas)}</b></span>
+        ${saldo>0?`<span class="debe">Debe: ${fmt(saldo)}</span>`:'<span class="tot">✅ Pagado</span>'}
+      </div>
+      <div class="fila">
+        ${!p.entregado?`<button class="btn btn-verde btn-chico" onclick="entregar(${p.id})">✓ Entregué</button>`:''}
+        ${saldo>0?`<button class="btn btn-rosa btn-chico" onclick="cobrar(${p.id})">💵 Cobrar</button>`:''}
+        ${!p.entregado?`<button class="btn btn-rojo btn-chico" style="margin-left:auto" onclick="borrarPedido(${p.id})">🗑</button>`:''}
+      </div>
+    </div>`;}).join("") || "<div class='alerta'>No hay pedidos todavía.</div>";
+}
+
+function agregarItem(){
+  const idx = +document.getElementById("pedProd").value;
+  const cant = parseFloat(document.getElementById("pedCant").value);
+  if(!cant || cant<=0) return alert("Poné la cantidad");
+  const p = state.productos[idx];
+  carrito.items.push({nombre:p.nombre,unidad:p.unidad,cant,precio:p.precio});
+  document.getElementById("pedCant").value="";
+  renderPedidos();
+}
+function quitarItem(ix){ carrito.items.splice(ix,1); renderPedidos(); }
+
+function guardarPedido(){
+  if(!carrito.items.length) return alert("Agregá al menos un producto");
+  const sena = parseFloat(document.getElementById("pedSena").value)||0;
+  const cliente = document.getElementById("pedCliente").value.trim() || "Sin nombre";
+  state.pedidos.push({id:Date.now(), cliente, items:carrito.items,
+    total:+carrito.items.reduce((s,it)=>s+it.cant*it.precio,0).toFixed(2),
+    senas: sena>0?[{fecha:Date.now(),monto:sena}]:[], entregado:false, fecha:Date.now()});
+  carrito={items:[]};
+  document.getElementById("pedCliente").value=""; document.getElementById("pedSena").value="";
+  guardar(); renderPedidos(); renderKPIs();
+  alert("📋 Pedido guardado para "+cliente);
+}
+
+function cobrar(id){
+  const p = state.pedidos.find(x=>x.id===id);
+  const saldo = saldoP(p);
+  const m = parseFloat(prompt("💵 "+p.cliente+" debe "+fmt(saldo)+"\n¿Cuánto paga ahora?", saldo));
+  if(!m || m<=0) return;
+  p.senas.push({fecha:Date.now(),monto:m});
+  guardar(); render();
+  alert(m>=saldo ? "✅ ¡Pagado completo!" : "Anotado. Le queda debiendo "+fmt(saldo-m));
+}
+
+function entregar(id){
+  const p = state.pedidos.find(x=>x.id===id);
+  if(!p || p.entregado) return;
+  const faltan = p.items.map(it=>{
+    const prod = state.productos.find(pr=>pr.nombre===it.nombre);
+    return prod && prod.stock < it.cant ? "• "+it.nombre+" (hay "+fnum(prod.stock)+", faltan "+fnum(it.cant-prod.stock)+")" : null;
+  }).filter(Boolean);
+  if(faltan.length && !confirm("⚠️ Stock insuficiente:\n"+faltan.join("\n")+"\n\n¿Entregar igual? Se descuenta lo que haya.")) return;
+  p.items.forEach(it=>{
+    const prod = state.productos.find(pr=>pr.nombre===it.nombre);
+    if(prod) prod.stock = Math.max(0, +(prod.stock-it.cant).toFixed(2));
+    state.ventas.push({fecha:Date.now(),nombre:it.nombre,unidad:it.unidad,cant:it.cant,precio:it.precio,costo:prod?prod.costo:0,total:+(it.cant*it.precio).toFixed(2),ganancia:+(it.cant*(it.precio-(prod?prod.costo:0))).toFixed(2),pedido:p.cliente});
+  });
+  p.entregado = true;
+  guardar(); render();
+  alert("✅ Entregado a "+p.cliente+": stock descontado y ganancia registrada.");
+}
+
+function borrarPedido(id){
+  if(confirm("¿Borrar este pedido?")){
+    state.pedidos = state.pedidos.filter(x=>x.id!==id);
+    guardar(); render();
+  }
+}
+
+/* ===== HISTORIAL / KPIs ===== */
+function renderListas(){
+  document.getElementById("listaVentas").innerHTML = state.ventas.slice().reverse().map(v=>`
+    <div class="venta">${new Date(v.fecha).toLocaleString("es-AR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})} — ${v.nombre} <b>x${fnum(v.cant)}</b> ${v.unidad}${v.pedido?" (pedido "+v.pedido+")":""}<br>
+    Total: ${fmt(v.total)} → <span class="tot">Ganaste ${fmt(v.ganancia)}</span></div>`).join("") || "<div class='alerta'>Todavía no hay ventas.</div>";
+
+  const gastoTotal = state.compras.reduce((s,c)=>s+c.total,0);
+  document.getElementById("listaCompras").innerHTML =
+    `<div class="card"><div class="nombre">💸 Total gastado en compras: ${fmt(gastoTotal)}</div></div>` +
+    (state.compras.slice().reverse().map(c=>`
+    <div class="venta">${new Date(c.fecha).toLocaleDateString("es-AR")} — ${c.nombre}: ${fnum(c.cant)} × ${fmt(c.costoUnit)} = <b>${fmt(c.total)}</b></div>`).join("") || "");
+}
+
+function renderKPIs(){
+  const hoy = new Date().toDateString();
+  const vHoy = state.ventas.filter(v=>new Date(v.fecha).toDateString()===hoy);
+  document.getElementById("gHoy").textContent = fmt(vHoy.reduce((s,v)=>s+v.ganancia,0));
+  document.getElementById("gTotal").textContent = fmt(state.ventas.reduce((s,v)=>s+v.ganancia,0));
+  document.getElementById("gastado").textContent = fmt(state.compras.reduce((s,c)=>s+c.total,0));
+  document.getElementById("porCobrar").textContent = fmt(state.pedidos.reduce((s,p)=>s+saldoP(p),0));
+}
+
+function render(){ renderProductos(); renderPedidos(); renderListas(); renderKPIs(); }
+
+/* ===== RESPALDOS ===== */
+function exportarJSON(){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(state)],{type:"application/json"}));
+  a.download = "respaldo_gestion_"+new Date().toISOString().slice(0,10)+".json"; a.click();
+}
+function importarJSON(e){
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => { state = Object.assign({ventas:[],compras:[],pedidos:[]},JSON.parse(r.result)); guardar(); render(); alert("✅ Respaldo cargado"); };
+  r.readAsText(f);
+}
+function exportarCSV(tipo){
+  let csv="";
+  if(tipo==="ventas"){
+    csv="Fecha;Cliente;Producto;Cantidad;Unidad;Precio;Total;Ganancia\n";
+    state.ventas.forEach(v=>csv+=`${new Date(v.fecha).toLocaleString("es-AR")};${v.pedido};${v.nombre};${v.cant};${v.unidad};${v.precio};${v.total};${v.ganancia}\n`);
+  }
+  if(tipo==="pedidos"){
+    csv="Fecha;Cliente;Productos;Total;Pagado;Saldo;Estado\n";
+    state.pedidos.forEach(p=>csv+=`${new Date(p.fecha).toLocaleDateString("es-AR")};${p.cliente};${p.items.map(it=>it.cant+" "+it.nombre).join(" + ")};${p.total};${p.senas.reduce((s,x)=>s+x.monto,0)};${saldoP(p)};${p.entregado?"Entregado":"Pendiente"}\n`);
+  }
+  if(tipo==="compras"){
+    csv="Fecha;Producto;Cantidad;Costo unit.;Total\n";
+    state.compras.forEach(c=>csv+=`${new Date(c.fecha).toLocaleDateString("es-AR")};${c.nombre};${c.cant};${c.costoUnit};${c.total}\n`);
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv"}));
+  a.download = tipo+".csv"; a.click();
+}
+
+function borrarTodo(){
+  if(confirm("¿Seguro? Se borra TODO") && confirm("Última confirmación: ¿borrar todo?")){
+    state = {productos:JSON.parse(JSON.stringify(DEFAULT)),ventas:[],compras:[],pedidos:[]};
+    guardar(); render();
+  }
+}
+
+/* ===== ARRANQUE ===== */
+(async function(){
+  render();
+  if(apiURL()){
+    marcarSync("⏳ Conectando al Sheet...");
+    try{ await syncBajar(); render(); marcarSync("☁️ Sincronizado con Sheet"); }
+    catch(e){ marcarSync("⚠️ Sin conexión — usando datos del celu"); }
+  }
+  document.getElementById("apiUrl").value = apiURL();
+})();
+</script>
+</body>
+ </html>

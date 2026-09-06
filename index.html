@@ -13,7 +13,7 @@
   .kpis{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
   .kpis div{background:#fff;border-radius:8px;padding:5px 10px;color:#880e4f;font-weight:bold;font-size:13px}
   nav{display:flex;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:2px solid #f8bbd0;z-index:10}
-  nav button{flex:1;padding:11px 0;border:none;background:none;font-size:11.5px;color:#888;cursor:pointer}
+  nav button{flex:1;padding:9px 0;border:none;background:none;font-size:10px;color:#888;cursor:pointer}
   nav button.activo{color:#2e7d32;font-weight:bold;background:#f1f8e9}
   main{padding:12px}
   .buscador{width:100%;padding:10px;border:1px solid #f48fb1;border-radius:8px;margin-bottom:10px;font-size:15px}
@@ -25,6 +25,7 @@
   .mas{background:#66bb6a}.menos{background:#ef5350}
   .stock-num{font-size:17px;font-weight:bold;min-width:36px;text-align:center}
   .sin-stock{color:#c62828;font-weight:bold}
+  .poco-stock{color:#e65100;font-weight:bold}
   input.precio{width:88px;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:14px;text-align:right}
   input, select{font-size:15px;padding:8px;border:1px solid #ccc;border-radius:8px}
   .etiq{font-size:12px;color:#555}
@@ -41,6 +42,11 @@
   h2{color:#880e4f;font-size:16px;margin:14px 0 8px}
   .item-linea{background:#fce4ec;border-radius:8px;padding:6px 10px;margin:4px 0;font-size:13.5px;display:flex;justify-content:space-between;align-items:center}
   .x{color:#c62828;font-weight:bold;cursor:pointer;padding:0 6px}
+  .kpi3s{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+  .kpi3s div{background:#fff;border-radius:8px;padding:8px 4px;text-align:center;color:#880e4f;font-size:12px}
+  .kpi3s b{display:block;font-size:18px}
+  .row-crit{border-left:5px solid #c62828}
+  .row-warn{border-left:5px solid #ffb300}
 </style>
 </head>
 <body>
@@ -61,6 +67,14 @@
   <section id="tab-productos">
     <input class="buscador" id="buscar" placeholder="🔍 Buscar producto..." oninput="render()">
     <div id="listaProductos"></div>
+  </section>
+
+  <!-- STOCK -->
+  <section id="tab-stock" style="display:none">
+    <input class="buscador" id="buscarStock" placeholder="🔍 Buscar en stock..." oninput="renderStock()">
+    <div class="kpi3s" id="resumenStock"></div>
+    <div class="alerta">🔴 sin stock · 🟡 poco (2 o menos) · 🟢 bien. Con ➕/➖ corregís el stock y con <b>🛒 Compré</b> registrás la mercadería que llegó.</div>
+    <div id="listaStock"></div>
   </section>
 
   <!-- PEDIDOS -->
@@ -86,7 +100,7 @@
 
   <!-- COMPRAS -->
   <section id="tab-compras" style="display:none">
-    <div class="alerta">🛒 Para registrar una compra, andá a <b>Productos</b> y tocá el botón verde <b>"🛒 Compré"</b>. Acá ves todo lo gastado.</div>
+    <div class="alerta">🛒 Para registrar una compra, andá a <b>Stock</b> o <b>Productos</b> y tocá el botón verde <b>"🛒 Compré"</b>. Acá ves todo lo gastado.</div>
     <div id="listaCompras"></div>
   </section>
 
@@ -114,7 +128,10 @@
     <input class="buscador" id="nuevoNombre" placeholder="Nombre del producto">
     <div class="fila">
       <select id="nuevaUnidad">
-        <option value="un">Unidad</option><option value="kg">Kilo</option><option value="paq">Paquete</option>
+        <option value="un">Unidad</option>
+        <option value="kg">Kilo</option>
+        <option value="medio">Paquete ½ kg</option>
+        <option value="paq">Paquete</option>
       </select>
       <input class="precio" id="nuevoCosto" type="number" placeholder="Costo">
       <input class="precio" id="nuevoPrecio" type="number" placeholder="Venta">
@@ -132,11 +149,12 @@
 </main>
 
 <nav>
-  <button class="activo" onclick="cambiarTab(0,this)">📦<br>Productos</button>
-  <button onclick="cambiarTab(1,this)">📋<br>Pedidos</button>
-  <button onclick="cambiarTab(2,this)">🛒<br>Compras</button>
-  <button onclick="cambiarTab(3,this)">📜<br>Historial</button>
-  <button onclick="cambiarTab(4,this)">⚙️<br>Ajustes</button>
+  <button class="activo" onclick="cambiarTab(0,this)">🧾<br>Productos</button>
+  <button onclick="cambiarTab(1,this)">📦<br>Stock</button>
+  <button onclick="cambiarTab(2,this)">📋<br>Pedidos</button>
+  <button onclick="cambiarTab(3,this)">🛒<br>Compras</button>
+  <button onclick="cambiarTab(4,this)">📜<br>Historial</button>
+  <button onclick="cambiarTab(5,this)">⚙️<br>Ajustes</button>
 </nav>
 
 <script>
@@ -150,17 +168,17 @@ const MILANESAS = [
 ];
 const DEFAULT = [
  ...MILANESAS.map(n=>({nombre:"Milanesa: "+n,unidad:"un",costo:4000,precio:6500,stock:0})),
- {nombre:"Ñoquis clásicos",unidad:"kg",costo:3000,precio:6000,stock:0},
- {nombre:"Ñoquis de espinaca",unidad:"kg",costo:3500,precio:6500,stock:0},
- {nombre:"Fideos clásicos",unidad:"kg",costo:3000,precio:6000,stock:0},
- {nombre:"Fideos de espinaca",unidad:"kg",costo:4000,precio:6500,stock:0},
- {nombre:"Fideos integrales",unidad:"kg",costo:0,precio:6000,stock:0},
+ {nombre:"Ñoquis clásicos (paq ½ kg)",unidad:"medio",costo:1500,precio:3000,stock:0},
+ {nombre:"Ñoquis de espinaca (paq ½ kg)",unidad:"medio",costo:1750,precio:3250,stock:0},
+ {nombre:"Fideos clásicos (paq ½ kg)",unidad:"medio",costo:1500,precio:3000,stock:0},
+ {nombre:"Fideos de espinaca (paq ½ kg)",unidad:"medio",costo:2000,precio:3250,stock:0},
+ {nombre:"Fideos integrales (paq ½ kg)",unidad:"medio",costo:0,precio:3000,stock:0},
  {nombre:"Ravioles XL (x16)",unidad:"paq",costo:6000,precio:7000,stock:0},
  {nombre:"Sorrentinos verdes (x8)",unidad:"paq",costo:3500,precio:6000,stock:0},
  {nombre:"Pizzetas clásicas (x12)",unidad:"paq",costo:3500,precio:6000,stock:0},
  {nombre:"Pizzetas integrales (x12)",unidad:"paq",costo:4000,precio:6000,stock:0}
 ];
-const UNIDAD = {un:"unidad",kg:"kilo",paq:"paquete"};
+const UNIDAD = {un:"unidad",kg:"kilo",medio:"paquete ½ kg",paq:"paquete"};
 const fmt = n => "$" + Math.round(n).toLocaleString("es-AR");
 const fnum = n => (+n).toLocaleString("es-AR",{maximumFractionDigits:2});
 const apiURL = () => localStorage.getItem("gestionYani_api") || "";
@@ -244,7 +262,7 @@ async function forzarDescarga(){
 
 /* ===== NAVEGACIÓN ===== */
 function cambiarTab(n, btn){
-  ["productos","pedidos","compras","historial","ajustes"].forEach((t,i)=>document.getElementById("tab-"+t).style.display = i===n?"block":"none");
+  ["productos","stock","pedidos","compras","historial","ajustes"].forEach((t,i)=>document.getElementById("tab-"+t).style.display = i===n?"block":"none");
   document.querySelectorAll("nav button").forEach(b=>b.classList.remove("activo"));
   btn.classList.add("activo");
 }
@@ -274,6 +292,37 @@ function renderProductos(){
         <button class="btn btn-rojo btn-chico" style="margin-left:auto" onclick="borrarProducto(${i})">🗑</button>
       </div>
     </div>`:"").join("");
+}
+
+/* ===== STOCK ===== */
+function renderStock(){
+  const f = (document.getElementById("buscarStock").value||"").toLowerCase();
+  const sin = state.productos.filter(p=>p.stock<=0).length;
+  const bajos = state.productos.filter(p=>p.stock>0 && p.stock<=2).length;
+  document.getElementById("resumenStock").innerHTML = `
+    <div><b style="color:#c62828">${sin}</b>sin stock</div>
+    <div><b style="color:#e65100">${bajos}</b>stock bajo</div>
+    <div><b>${state.productos.length}</b>productos</div>`;
+  const orden = state.productos.map((p,i)=>({p,i}))
+    .filter(x=>x.p.nombre.toLowerCase().includes(f))
+    .sort((a,b)=>{
+      const va=a.p.stock<=0?0:(a.p.stock<=2?1:2), vb=b.p.stock<=0?0:(b.p.stock<=2?1:2);
+      return va-vb || a.p.nombre.localeCompare(b.p.nombre);
+    });
+  document.getElementById("listaStock").innerHTML = orden.map(({p,i})=>`
+    <div class="card ${p.stock<=0?'row-crit':(p.stock<=2?'row-warn':'')}">
+      <div class="fila" style="justify-content:space-between;margin-top:0">
+        <div class="nombre" style="font-size:14px">${p.nombre}</div>
+        <span class="stock-num ${p.stock<=0?'sin-stock':(p.stock<=2?'poco-stock':'')}" style="font-size:20px">${fnum(p.stock)}</span>
+      </div>
+      <div class="fila" style="margin-top:4px">
+        <button class="stock-btn menos" onclick="ajustarStock(${i},-1)">−</button>
+        <button class="stock-btn mas" onclick="ajustarStock(${i},1)">+</button>
+        <span class="etiq">${UNIDAD[p.unidad]}</span>
+        ${p.stock<=0?'<span class="sin-stock">🔴 SIN STOCK</span>':(p.stock<=2?'<span class="poco-stock">🟡 poco</span>':'')}
+        <button class="btn btn-verde btn-chico" style="margin-left:auto" onclick="comprar(${i})">🛒 Compré</button>
+      </div>
+    </div>`).join("") || "<div class='alerta'>No hay productos con ese nombre.</div>";
 }
 
 function ajustarStock(i,d){
@@ -438,7 +487,7 @@ function renderKPIs(){
   document.getElementById("porCobrar").textContent = fmt(state.pedidos.reduce((s,p)=>s+saldoP(p),0));
 }
 
-function render(){ renderProductos(); renderPedidos(); renderListas(); renderKPIs(); }
+function render(){ renderProductos(); renderStock(); renderPedidos(); renderListas(); renderKPIs(); }
 
 /* ===== RESPALDOS ===== */
 function exportarJSON(){
@@ -490,4 +539,4 @@ function borrarTodo(){
 })();
 </script>
 </body>
- </html>
+</html>
